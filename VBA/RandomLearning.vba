@@ -29,6 +29,9 @@ Dim sColumnRT As String
 ' データ開始行
 Dim nRowStart As Integer
 
+' テスト件数 ( 上からN件、 0 の場合は全データでテスト )
+Dim nQcount
+
 ' 1周目だけ Try/OK/NG をカウントアップするか、毎回カウントアップするか
 Dim bUpdateOnlyFirstLoop As Boolean
 
@@ -48,7 +51,7 @@ Sub Init()
     sColumnOK = "D"  'OK列
     sColumnNG = "E"  'OK列
     sColumnRT = "F"  'Rate列
-    
+
     'データ開始行 (1行目がヘッダ行の場合は2とする)
     nRowStart = 2
 
@@ -57,7 +60,7 @@ Sub Init()
 
     ' Excel内の処理対象シートを設定
     'Set TargetSheet = Worksheets(1)        'シート番号で指定
-    Set TargetSheet = Worksheets("Sheet1") 'シート名で指定
+    Set TargetSheet = Worksheets("Source") 'シート名で指定
 
 End Sub
 
@@ -133,17 +136,82 @@ End Function
 
 
 '-------------------------------------------------------------------------------
+' 試験数(Try)の値が小さい問題を扱う
+'-------------------------------------------------------------------------------
+Sub LearningFewTryQuestions()
+
+    Debug.Print "---Start (FewTry)---"
+    Init
+
+    ' Q列の最終行の番号を取得
+    nRowEnd = TargetSheet.Cells(Rows.Count, sColumnQs).End(xlUp).Row
+
+    ' データの並べ替え (Try 列の昇順)
+    Call Range("A1:G" & nRowEnd).Sort(Header:=xlYes, Key1:=Range("C1"), Order1:=xlAscending, Orientation:=xlSortColumns)
+
+    ' テスト件数 ( 上からN件、 0 の場合は全データでテスト )
+    nQcount = 50
+
+    ' メイン処理
+    Main
+
+End Sub
+
+
+'-------------------------------------------------------------------------------
+'  正解率(Rate)の値が小さい問題を扱う
+'-------------------------------------------------------------------------------
+Sub LearningLowRateQuestions()
+
+    Debug.Print "---Start (LowRate)---"
+    Init
+
+    ' Q列の最終行の番号を取得
+    nRowEnd = TargetSheet.Cells(Rows.Count, sColumnQs).End(xlUp).Row
+
+    ' データの並べ替え (Rate列の昇順)
+    Call Range("A1:G" & nRowEnd).Sort(Header:=xlYes, Key1:=Range("F1"), Order1:=xlAscending, Orientation:=xlSortColumns)
+
+    ' テスト件数 ( 上からN件、 0 の場合は全データでテスト )
+    nQcount = 50
+
+     ' メイン処理
+    Main
+
+End Sub
+
+
+'-------------------------------------------------------------------------------
+ ' 全問テストの実行
+'-------------------------------------------------------------------------------
+Sub LearningAllQuestions()
+
+    Debug.Print "---Start (All)---"
+
+    ' テスト件数 ( 上からN件、 0 の場合は全データでテスト )
+    nQcount = 0
+
+     ' メイン処理
+    Main
+
+End Sub
+
+
+'-------------------------------------------------------------------------------
 ' メイン
 '-------------------------------------------------------------------------------
 Sub Main()
 
     '-- 初期化 ---------------------------------------------
-    Debug.Print "---Start---"
+    Debug.Print "---Start (Main)---"
     Init
-        
-    '-- Question列の終了行を取得する --------------------------
-    nRowEnd = Cells(Rows.Count, sColumnQs).End(xlUp).Row
-    nRows = nRowEnd - nRowStart + 1
+
+    '--  データ数の設定-----------------------
+    nRowEnd = TargetSheet.Cells(Rows.Count, sColumnQs).End(xlUp).Row   ' Question列の終了行を取得する
+    nRows = nRowEnd - nRowStart + 1                                       ' データ数を算出する
+    If (nQcount <> 0) And (nQcount < nRows) Then                    ' 全問出題の場合はnRowsのまま、N問出題の場合はその値に書き換える
+        nRows = nQcount
+    End If
     'Debug.Print "nRowStart = " & nRowStart
     'Debug.Print "nRowEnd = " & nRowEnd
     'Debug.Print "nRows = " & nRows
@@ -187,7 +255,7 @@ Sub Main()
             ' インデックス(今回処理する行番号)を取得
             idx = indices(i)
             Debug.Print "MainLoop: " & nloop & "  SubLoop: " & i & "  Index: " & idx
-            
+
             If idx <> "-" Then
 
                 ' 回答済問題数をカウントアップ
@@ -247,7 +315,11 @@ Sub Main()
         Next i
 
     Loop While (CountValidElement(indices) <> 0) ' 全問正解になるまでループ(全要素がハイフンになるまでループ)
-    
+
+    ' データの並べ替え (Note列の昇順)
+    nRowEnd = TargetSheet.Cells(Rows.Count, sColumnQs).End(xlUp).Row
+    Call Range("A1:G" & nRowEnd).Sort(Header:=xlYes, Key1:=Range("G1"), Order1:=xlAscending, Orientation:=xlSortColumns)
+
     '-- Debug Print (終了時) ----
     DebugPlot_Matrix1D (indices)
     DebugPlot_Matrix6D (elements)
